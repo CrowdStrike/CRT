@@ -45,6 +45,9 @@ This tool will return most queries in .CSV format, and a few in .TXT format. Add
 .PARAMETER Interactive
 [OPTIONAL] Some commands may take a long time to process depending on the amount of data in the tenant. Using the Interactive parameter, you will have the option to skip any particular command prior to the module running.
 
+.PARAMETER AzureGovernment
+[OPTIONAL] Use the AzureGovernment switch to indicate the Azure environment is GCC High.
+
 .EXAMPLE
 .\Get-CRTReport.ps1
 
@@ -59,6 +62,9 @@ This tool will return most queries in .CSV format, and a few in .TXT format. Add
 
 .EXAMPLE
 .\Get-CRTReport.ps1 -JobName MyJobName -WorkingDirectory 'C:\Path\to\Job' -Interactive
+
+.EXAMPLE
+.\Get-CRTReport.ps1 -JobName MyJobName -WorkingDirectory 'C:\Path\to\Job' -Interactive -AzureGovernment
 
 .EXAMPLE
 .\Get-CRTReport.ps1 -JobName MyJobName -WorkingDirectory 'C:\Path\to\Job' -Commands "Command1,Command2"
@@ -99,7 +105,8 @@ Param (
     [String]$Commands,
     [Switch]$Interactive,
     [String]$JobName,
-    [System.IO.FileInfo]$WorkingDirectory
+    [System.IO.FileInfo]$WorkingDirectory,
+    [switch] $AzureGovernment
 );
 
 #...................................
@@ -379,9 +386,17 @@ Out-LogFile "Authenticating to Exchange Online";
 # Connect to Exchange Online
 try {
     if ($BasicAuth) {
-        Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
+        if ($AzureGovernment){
+            Connect-ExchangeOnline -Credential $loginCreds -ExchangeEnvironmentName O365USGovGCCHigh -ShowBanner:$false -ErrorAction Stop 6>$null
+        }else {
+            Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
+        }
     } else {
-        Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop 6>$null
+        if ($AzureGovernment){
+            Connect-ExchangeOnline -ExchangeEnvironmentName O365USGovGCCHigh -ShowBanner:$false -ErrorAction Stop 6>$null
+        }else{
+            Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop 6>$null
+        }
     };
     Out-LogFile "Successfully connected to Exchange Online"
 } catch {
@@ -394,9 +409,17 @@ try {
         };
         try {
             if ($BasicAuth) {
-                Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
+                if ($AzureGovernment){
+                    Connect-ExchangeOnline -Credential $loginCreds -ExchangeEnvironmentName O365USGovGCCHigh -ShowBanner:$false -ErrorAction Stop 6>$null
+                }else {
+                    Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
+                }
             } else {
-                Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop 6>$null
+                if ($AzureGovernment){
+                    Connect-ExchangeOnline -ExchangeEnvironmentName O365USGovGCCHigh -ShowBanner:$false -ErrorAction Stop 6>$null
+                }else {
+                    Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop 6>$null
+                }
             };
             Out-LogFile "Successfully connected to Exchange Online"
         } catch {
@@ -410,9 +433,17 @@ Out-LogFile "Authenticating to Azure AD";
 # Connect to Azure AD
 try {
     if ($BasicAuth) {
-        $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
+        if($AzureGovernment){
+            $ConnectAZD = Connect-AzureAD -Credential $loginCreds -AzureEnvironmentName AzureUSGovernment -ErrorAction Stop 6>$null
+        }else{
+            $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
+        }
     } else {
-        $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
+        if($AzureGovernment){
+            $ConnectAZD = Connect-AzureAD -AzureEnvironmentName AzureUSGovernment -ErrorAction Stop 6>$null
+        }else{
+            $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
+        }
     };
     Out-LogFile "Successfully connected to Azure AD"
 } catch {
@@ -425,9 +456,17 @@ try {
         };
         try {
             if ($BasicAuth) {
-                $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
+                if($AzureGovernment){
+                    $ConnectAZD = Connect-AzureAD -Credential $loginCreds -AzureEnvironmentName AzureUSGovernment -ErrorAction Stop 6>$null
+                }else{
+                    $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
+                }
             } else {
-                $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
+                if($AzureGovernment){
+                    $ConnectAZD = Connect-AzureAD  -AzureEnvironmentName AzureUSGovernment -ErrorAction Stop 6>$null
+                }else{
+                    $ConnectAZD = Connect-AzureAD  -ErrorAction Stop 6>$null
+                }
             };
             Out-LogFile "Successfully connected to Azure AD"
         } catch {
@@ -1488,7 +1527,11 @@ if ($continue) {
         if ($_.Exception.Message -ieq "You must call the Connect-AzureAD cmdlet before calling any other cmdlets.") {
             #Connect to Azure AD
             try {
-                $AzureADConnection = Connect-AzureAD -ErrorAction Stop 6>$null;
+                if($AzureGovernment){
+                    $ConnectAZD = Connect-AzureAD -Credential -AzureEnvironmentName AzureUSGovernment $loginCreds -ErrorAction Stop 6>$null
+                }else{
+                    $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
+                }
                 $AzureADRoles = @(Get-AzureADDirectoryRole -ErrorAction Stop)
             } catch {
                 throw $_.Exception.Message

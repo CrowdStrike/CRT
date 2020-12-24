@@ -61,6 +61,11 @@ _[OPTIONAL] With this parameter, specify the specific commands you want to run i
 ```
 .\Get-CRTReport.ps1 -JobName MyJobName -WorkingDirectory 'C:\Path\to\Job\Folder' -Commands "Command1,Command2"
 ```
+`-AzureGovernment` Parameter:
+_[OPTIONAL] With this parameter, use the AzureGovernment switch to indicate the Azure environment is GCC High._
+```
+.\Get-CRTReport.ps1 -JobName MyJobName -WorkingDirectory 'C:\Path\to\Job\Folder' -AzureGovernment
+```
 Available Commands:
 ```
 FedConfig
