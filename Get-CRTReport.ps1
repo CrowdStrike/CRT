@@ -791,7 +791,7 @@ if ($continue) {
     };
     $SMTPForward = $null;
     try {
-        [array]$SMTPForward = Get-EXOMailbox -ResultSize Unlimited | Where-Object {($_.ForwardingAddress -ne $null -or $_.ForwardingSMTPAddress -ne $null)} | Select-Object Name,ForwardingAddress,ForwardingSMTPAddress,DeliverToMailboxAndForward;
+        [array]$SMTPForward = Get-EXOMailbox -PropertySets Delivery -ResultSize Unlimited | Where-Object {($_.ForwardingAddress -ne $null -or $_.ForwardingSMTPAddress -ne $null)} | Select-Object Name,ForwardingAddress,ForwardingSMTPAddress,DeliverToMailboxAndForward;
         if($SMTPForward.Count -gt 0) {
             try {
                 $SMTPForward | Export-Csv "$reportsFolder\MailForwardingRules.csv" -NoTypeInformation;
