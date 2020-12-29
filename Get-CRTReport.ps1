@@ -1,5 +1,3 @@
-#Requires -Module ExchangeOnlineManagement,AzureAD
-
 <#
 .SYNOPSIS
 Retrieves various configurations from the Azure AD/O365 tenant to provide insight during threat hunting.
