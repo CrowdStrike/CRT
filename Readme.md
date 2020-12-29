@@ -26,7 +26,7 @@ NOTE: In order to view Tenant Partner Information, including roles assigned to y
 https://admin.microsoft.com/AdminPortal/Home#/partners
 
 ### Prerequisites:
-CRT has only been tested and confirmed working on systems running Windows OS.
+Windows Host: CRT has only been tested and confirmed working on systems running Windows OS.
 
 The following PowerShell modules are required and will be installed automatically:
 - ExchangeOnlineManagement
