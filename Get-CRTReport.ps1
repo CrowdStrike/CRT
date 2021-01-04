@@ -711,7 +711,7 @@ if ($continue) {
     };
     $RemoteDomains = $null;
     try {
-        [array]$RemoteDomains = Get-RemoteDomain | Select-Object Name,DomainName,AllowedOOFType;
+        [array]$RemoteDomains = Get-RemoteDomain | Select-Object Name,DomainName,AllowedOOFType,AutoForwardEnabled;
         if($RemoteDomains.Count -gt 0) {
             try {
                 $RemoteDomains | Export-Csv "$reportsFolder\RemoteDomainNames.csv" -NoTypeInformation;
@@ -727,7 +727,7 @@ if ($continue) {
                 Out-Summary "Mail Forwarding Rules for Remote Domains" -NewReport;
                 Out-Summary ("[+] Found " + $RemoteDomains.count + " Remote Domain(s)");
                 Out-Summary "[+] Review Mail Forwarding Rules for Remote Domains. Output saved to '$runFolderShort\Reports\RemoteDomainNames.csv'";
-                Out-Summary "`rINVESTIGATIVE TIPS:`nNOTE: These are the domains auto-forwarding is allowed to forward to
+                Out-Summary "`rINVESTIGATIVE TIPS:
                 - Look for any domain names that are suspicious in nature.
                 - Threat Actors can add forwarding rules to send messages to mailboxes they control.
                 - Ability to forward to remote domains should be either disabled or restricted.
@@ -914,7 +914,7 @@ if ($continue) {
             Out-Summary "[+] Review Mailbox Delegates where 'Full Access' permission is granted. Output saved to '$runFolderShort\Reports\FullAccessPerms.csv'";
             Out-Summary "`rINVESTIGATIVE TIPS:
             - Check which accounts have 'Full Access' to mailboxes; ideally there should be a limited number of accounts with this access.
-            - Typically an email gateway account (e.g., Proofpoint, Barracuda, etc) would have full access." -Summary
+            - In some configurations an email gateway account (e.g., Proofpoint, Barracuda, etc) may require full access." -Summary
         } catch {
             Out-LogFile "There was a problem logging this query" -warning;
             Write-Error $_.Exception.Message;
@@ -1090,7 +1090,7 @@ if ($continue) {
     };
     if($DelegateSendPerms.Count -gt 0) {
         try {
-            $DelegateSendPerms | Export-Csv "$reportsFolder\SendAsDelegates.csv" -NoTypeInformation;
+            $DelegateSendPerms | Select Identity,Trustee,AccessControlType,AccessRights,IsInherited,InheritanceType | Export-Csv "$reportsFolder\SendAsDelegates.csv" -NoTypeInformation;
             $DelegateSendPerms | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\SendAsDelegates.json"
         } catch {
             Out-LogFile "Unable to write output to disk" -warning;
