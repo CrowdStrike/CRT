@@ -8,6 +8,7 @@ Exchange Online (O365):
 - Client Access Settings Configured on Mailboxes
 - Mail Forwarding Rules for Remote Domains
 - Mailbox SMTP Forwarding Rules
+- Mail Transport Rules
 - Delegates with 'Full Access' Permission Granted
 - Delegates with Any Permissions Granted
 - Delegates with 'Send As' or 'SendOnBehalf' Permissions
@@ -70,6 +71,7 @@ FedTrust
 ClientAccess
 RemoteDomains
 SMTPForward
+TransportRule
 FullAccessGranted
 AnyAccessGranted
 SendAsGranted
