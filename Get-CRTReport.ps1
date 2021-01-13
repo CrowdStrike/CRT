@@ -711,7 +711,7 @@ if ($continue) {
     };
     $RemoteDomains = $null;
     try {
-        [array]$RemoteDomains = Get-RemoteDomain | Select-Object Name,DomainName,AllowedOOFType;
+        [array]$RemoteDomains = Get-RemoteDomain | Select-Object Name,DomainName,AllowedOOFType,AutoForwardEnabled;
         if($RemoteDomains.Count -gt 0) {
             try {
                 $RemoteDomains | Export-Csv "$reportsFolder\RemoteDomainNames.csv" -NoTypeInformation;
