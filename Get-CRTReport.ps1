@@ -561,9 +561,9 @@ if ($continue) {
                 Write-Host -ForegroundColor Red "[!] Unable to write output to disk"
             };
             try {
-                Out-LogFile "[+] Review Federation trust information. Output saved to '$runFolderShort\Reports\FederationTrust.txt'";
+                Out-LogFile "[+] Review Federation Trust information. Output saved to '$runFolderShort\Reports\FederationTrust.txt'";
                 Out-Summary "Federation Trust Information" -NewReport;
-                Out-Summary "[+] Review Federation trust. Output saved to '$runFolderShort\Reports\FederationTrust.txt'";
+                Out-Summary "[+] Review Federation Trust. Output saved to '$runFolderShort\Reports\FederationTrust.txt'";
                 Out-Summary "`rINVESTIGATIVE TIPS:
                 - Review the certificates for the trust. Investigate any recent changes based on date and ensure they are authorized & expected.
                 - NOTE: This is a known SUNBURST TTP." -Summary
@@ -1130,13 +1130,14 @@ if ($continue) {
     };
     Write-Host -ForegroundColor Yellow "This make take awhile; please be patient...";
     $DelegateSendPerms = @();
+    $DelegateSendPermsResults = @();
     try {
         $DelegateSendPerms += Get-EXOMailbox -ResultSize Unlimited -ErrorAction SilentlyContinue | Get-EXORecipientPermission -ErrorAction Stop | Where-Object {$_.Trustee -ne "NT AUTHORITY\SELF"}    
     } catch {
         if($_.Exception.Message -match "unauthorized"){
             try {
                 Out-LogFile "Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Global Admin' role." -warning;
-                Write-Host -ForegroundColor Red "[!] Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Global Admin' role. Skipping command..."
+                Write-Host -ForegroundColor Red "[!] Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Global Admin' role. Skipping module..."
             } catch {
                 Write-Error $_.Exception.Message
             }
@@ -1152,19 +1153,30 @@ if ($continue) {
         Write-Host -ForegroundColor Red "[!] Unable to retrieve Mailbox Delegates where where 'Send As' or 'SendOnBehalf' permission is granted"
     };
     if($DelegateSendPerms.Count -gt 0) {
+        foreach ($obj in $DelegateSendPerms){
+            $ObjectProperties = [Ordered]@{
+                Identity = $obj | Select-Object -exp Identity
+                Trustee = $obj | Select-Object -exp Trustee
+                AccessControlType = $obj | Select-Object -exp AccessControlType
+                AccessRights = $obj | Select-Object -exp AccessRights
+                IsInherited = $obj | Select-Object -exp IsInherited
+                InheritanceType = $obj | Select-Object -exp InheritanceType
+            };
+            $DelegateSendPermsResults += New-Object -TypeName PSObject -Property $ObjectProperties
+        };
         try {
-            $DelegateSendPerms | Select-Object Identity,Trustee,AccessControlType,AccessRights,IsInherited,InheritanceType | Export-Csv "$reportsFolder\SendAsDelegates.csv" -NoTypeInformation  -Encoding Default;
-            $DelegateSendPerms | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\SendAsDelegates.json"
+            $DelegateSendPermsResults | Export-Csv "$reportsFolder\SendAsDelegates.csv" -NoTypeInformation  -Encoding Default;
+            $DelegateSendPermsResults | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\SendAsDelegates.json"
         } catch {
             Out-LogFile "Unable to write output to disk" -warning;
             Write-Error $_.Exception.Message;
             Write-Host -ForegroundColor Red "[!] Unable to write output to disk"
         };
         try {
-            Out-LogFile ("[+] Found " + $DelegateSendPerms.count + " delegate(s) where 'SendAs' or 'SendOnBehalf permission is granted");
+            Out-LogFile ("[+] Found " + $DelegateSendPermsResults.count + " delegate(s) where 'SendAs' or 'SendOnBehalf permission is granted");
             Out-LogFile "[+] Review Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Output saved to '$runFolderShort\Reports\SendAsDelegates.csv'";
             Out-Summary "Delegates with 'Send As' or 'SendOnBehalf' Permissions" -NewReport;
-            Out-Summary ("[+] Found " + $DelegateSendPerms.count + " delegate(s) where 'SendAs' or 'SendOnBehalf permission is granted");
+            Out-Summary ("[+] Found " + $DelegateSendPermsResults.count + " delegate(s) where 'SendAs' or 'SendOnBehalf permission is granted");
             Out-Summary "[+] Review Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Output saved to '$runFolderShort\Reports\SendAsDelegates.csv'";
             Out-Summary "`rINVESTIGATIVE TIPS:
             - Look for any suspicious use of 'personal' like accounts with 'Send As' or 'SendOnBehalf' permissions.
