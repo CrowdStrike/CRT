@@ -102,9 +102,9 @@ No parameters specified: _A folder named with date and time (YYYYDDMMTHHMM) will
 - Attempting to connect to Exchange Online using Federated logins does not currently work while trying to connect to both Exchange Online and Azure AD in the same PowerShell Session.
 - Retrieving results for Any/FullAccess permissions (AnyAccessGranted and FullAccessGranted commands) in some cases returns an error and may not fully complete. Running the command manually may still work:
 ```
-Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "AnyAssignedPerms.csv" -NoTypeInformation
+Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "AnyAssignedPerms.csv" -NoTypeInformation -Encoding Default
 
-Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.AccessRights -eq "FullAccess") -and ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "FullAccessPerms.csv" -NoTypeInformation
+Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.AccessRights -eq "FullAccess") -and ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "FullAccessPerms.csv" -NoTypeInformation -Encoding Default
 ```
 
 ### How Can I Contribute?
