@@ -1136,8 +1136,8 @@ if ($continue) {
     } catch {
         if($_.Exception.Message -match "unauthorized"){
             try {
-                Out-LogFile "Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Global Admin' role." -warning;
-                Write-Host -ForegroundColor Red "[!] Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Global Admin' role. Skipping module..."
+                Out-LogFile "Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Exchange Admin' role." -warning;
+                Write-Host -ForegroundColor Red "[!] Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Exchange Admin' role. Skipping module..."
             } catch {
                 Write-Error $_.Exception.Message
             }
