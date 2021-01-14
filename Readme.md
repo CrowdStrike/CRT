@@ -22,7 +22,7 @@ Azure AD:
 - Delegated Permissions & Application Permissions
 
 Querying Tenant Partner Information:
-NOTE: In order to view Tenant Partner Information, including roles assigned to your partners, you must log into the Azure Admin Portal as Global Admin:
+In order to view Tenant Partner Information, including roles assigned to your partners, you must log into the Microsoft 365 Admin Center as Global Admin:
 
 https://admin.microsoft.com/AdminPortal/Home#/partners
 
