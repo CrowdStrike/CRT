@@ -355,17 +355,19 @@ Out-LogFile "Checking for PowerShell module prerequisites"
 if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
     try {
         Out-LogFile "Installing ExchangeOnlineManagement module";
-        Install-Module -Name ExchangeOnlineManagement -Force
+        Install-Module -Scope CurrentUser -Name ExchangeOnlineManagement -Force
     } catch {
-        Write-Host -ForegroundColor Yellow "[!] Unable to install module ExchangeOnlineManagement. Please be sure to launch an elevated PowerShell prompt."
+        Write-Error $_.Exception.Message;
+        Write-Host -ForegroundColor Red "[!] Unable to install module ExchangeOnlineManagement."
     }
 };
 if (-not (Get-Module -ListAvailable  -Name AzureAD)) {
     try {
         Out-LogFile "Installing AzureAD module";
-        Install-Module -Name AzureAD -Force
+        Install-Module -Scope CurrentUser -Name AzureAD -Force
     } catch {
-        Write-Host -ForegroundColor Yellow "[!] Unable to install module AzureAD. Please be sure to launch an elevated PowerShell prompt."
+        Write-Error $_.Exception.Message;
+        Write-Host -ForegroundColor Red "[!] Unable to install module AzureAD."
     }
 };
 
