@@ -8,6 +8,7 @@ Exchange Online (O365):
 - Client Access Settings Configured on Mailboxes
 - Mail Forwarding Rules for Remote Domains
 - Mailbox SMTP Forwarding Rules
+- Mail Transport Rules
 - Delegates with 'Full Access' Permission Granted
 - Delegates with Any Permissions Granted
 - Delegates with 'Send As' or 'SendOnBehalf' Permissions
@@ -26,8 +27,6 @@ NOTE: In order to view Tenant Partner Information, including roles assigned to y
 https://admin.microsoft.com/AdminPortal/Home#/partners
 
 ### Prerequisites:
-Windows Host: CRT has only been tested and confirmed working on systems running Windows OS.
-
 The following PowerShell modules are required and will be installed automatically:
 - ExchangeOnlineManagement
 - AzureAD
@@ -70,6 +69,7 @@ FedTrust
 ClientAccess
 RemoteDomains
 SMTPForward
+TransportRules
 FullAccessGranted
 AnyAccessGranted
 SendAsGranted

@@ -11,6 +11,7 @@ Exchange Online (O365):
 - Client Access Settings Configured on Mailboxes
 - Mail Forwarding Rules for Remote Domains
 - Mailbox SMTP Forwarding Rules
+- Mail Transport Rules
 - Delegates with 'Full Access' Permission Granted
 - Delegates with Any Permissions Granted
 - Delegates with 'Send As' or 'SendOnBehalf' Permissions
@@ -65,7 +66,14 @@ This tool will return most queries in .CSV format, and a few in .TXT format. Add
 CrowdStrike Reporting Tool for Azure (CRT)
 Written by CrowdStrike Endpoint Recovery Services
 
-Version history:
+Version History:
+
+V1.1, 01/14/2021
+- Added Mail Transport Rules query
+- Fixed typos
+- Added '-Encoding Default' to Export-Csv commands
+- Separated Exchange online and Azure AD logons
+
 V1.0, 12/23/2020 - Initial version
 
 License:
@@ -234,6 +242,7 @@ if ($Commands) {
         "ClientAccess",
         "RemoteDomains",
         "SMTPForward",
+        "TransportRules",
         "FullAccessGranted",
         "AnyAccessGranted",
         "SendAsGranted",
@@ -343,7 +352,7 @@ $Global:LogDirectory = $runFolder;
 
 # Check for the Azure AD and Exchange Online Management Modules, and install if not already available
 Out-LogFile "Checking for PowerShell module prerequisites"
-if (-not (Get-Module -Name ExchangeOnlineManagement)) {
+if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
     try {
         Out-LogFile "Installing ExchangeOnlineManagement module";
         Install-Module -Name ExchangeOnlineManagement -Force
@@ -351,7 +360,7 @@ if (-not (Get-Module -Name ExchangeOnlineManagement)) {
         Write-Host -ForegroundColor Yellow "[!] Unable to install module ExchangeOnlineManagement. Please be sure to launch an elevated PowerShell prompt."
     }
 };
-if (-not (Get-Module -Name AzureAD)) {
+if (-not (Get-Module -ListAvailable  -Name AzureAD)) {
     try {
         Out-LogFile "Installing AzureAD module";
         Install-Module -Name AzureAD -Force
@@ -368,13 +377,32 @@ if (-not (Get-Module -Name AzureAD)) {
 if ($BasicAuth -and (-not $loginCreds)) {
     $Global:loginCreds = Get-Credential
 } elseif (-not $BasicAuth) {
-    Write-Host -ForegroundColor Yellow "NOTE: Using default authentication. This method will prompt you for login credentials 3 times.";
+    Write-Host -ForegroundColor Yellow "NOTE: Using default authentication. This method will prompt you for login credentials multiple times.";
     Start-Sleep -Seconds 5
 };
 
+#...................................
+# Script Commands
+#...................................
+
+if ($Interactive) {
+    $InteractiveMessage = "Press any key to skip this module...";
+    $InteractiveSkipMessage = "Skipping module.";
+    $InteractiveContMessage = "Running module...";
+    $InteractiveWaitSeconds = 3
+};
+
+#............................................................................................................................................
+# Exchange Online
+#............................................................................................................................................
+
+#...................................
+# Authentication
+#...................................
+
+# Connect to Exchange Online
 Out-LogFile "Beginning authentication";
 Out-LogFile "Authenticating to Exchange Online";
-# Connect to Exchange Online
 try {
     if ($BasicAuth) {
         Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
@@ -403,48 +431,6 @@ try {
     } else {
         throw $_.Exception.Message
     }
-};
-Out-LogFile "Authenticating to Azure AD";
-# Connect to Azure AD
-try {
-    if ($BasicAuth) {
-        $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
-    } else {
-        $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
-    };
-    Out-LogFile "Successfully connected to Azure AD"
-} catch {
-    if($_.Exception.Message -match "you have exceeded the maximum number of connections allowed"){
-        try {
-            Disconnect-AzureAD | Out-Null;
-            Out-LogFile "Disconnected from previous Azure AD session(s)"
-        } catch {
-            Write-Error $_.Exception.Message
-        };
-        try {
-            if ($BasicAuth) {
-                $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
-            } else {
-                $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
-            };
-            Out-LogFile "Successfully connected to Azure AD"
-        } catch {
-            throw $_.Exception.Message
-        }
-    } else {
-        throw $_.Exception.Message
-    }
-};
-
-#...................................
-# Script Commands
-#...................................
-
-if ($Interactive) {
-    $InteractiveMessage = "Press any key to skip this module...";
-    $InteractiveSkipMessage = "Skipping module.";
-    $InteractiveContMessage = "Running module...";
-    $InteractiveWaitSeconds = 3
 };
 
 #............................................................................................................................................
@@ -638,7 +624,7 @@ if ($continue) {
         [array]$ClientAccessSettings = Get-EXOCASMailbox -ResultSize Unlimited;
         if($ClientAccessSettings.Count -gt 0) {
             try {
-                $ClientAccessSettings | Export-Csv "$reportsFolder\ClientAccessSettingsMailboxes.csv" -NoTypeInformation;
+                $ClientAccessSettings | Export-Csv "$reportsFolder\ClientAccessSettingsMailboxes.csv" -NoTypeInformation -Encoding Default;
                 $ClientAccessSettings | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\ClientAccessSettingsMailboxes.json"
             } catch {
                 Out-LogFile "Unable to write output to disk" -warning;
@@ -714,7 +700,7 @@ if ($continue) {
         [array]$RemoteDomains = Get-RemoteDomain | Select-Object Name,DomainName,AllowedOOFType,AutoForwardEnabled;
         if($RemoteDomains.Count -gt 0) {
             try {
-                $RemoteDomains | Export-Csv "$reportsFolder\RemoteDomainNames.csv" -NoTypeInformation;
+                $RemoteDomains | Export-Csv "$reportsFolder\RemoteDomainNames.csv" -NoTypeInformation -Encoding Default;
                 $RemoteDomains | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\RemoteDomainNames.json"
             } catch {
                 Out-LogFile "Unable to write output to disk" -warning;
@@ -789,10 +775,10 @@ if ($continue) {
     };
     $SMTPForward = $null;
     try {
-        [array]$SMTPForward = Get-EXOMailbox -ResultSize Unlimited | Where-Object {($_.ForwardingAddress -ne $null -or $_.ForwardingSMTPAddress -ne $null)} | Select-Object Name,ForwardingAddress,ForwardingSMTPAddress,DeliverToMailboxAndForward;
+        [array]$SMTPForward = Get-EXOMailbox -PropertySets Minimum,Delivery -ResultSize Unlimited | Where-Object {($_.ForwardingAddress -ne $null -or $_.ForwardingSMTPAddress -ne $null)} | Select-Object Name,ForwardingAddress,ForwardingSMTPAddress,DeliverToMailboxAndForward;
         if($SMTPForward.Count -gt 0) {
             try {
-                $SMTPForward | Export-Csv "$reportsFolder\MailForwardingRules.csv" -NoTypeInformation;
+                $SMTPForward | Export-Csv "$reportsFolder\MailForwardingRules.csv" -NoTypeInformation -Encoding Default;
                 $SMTPForward | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\MailForwardingRules.json"
             } catch {
                 Out-LogFile "Unable to write output to disk" -warning;
@@ -826,6 +812,81 @@ if ($continue) {
 };
 #
 # End Command: SMTPForward
+#............................................................................................................................................
+
+#............................................................................................................................................
+# Begin Command: TransportRules (Mail Transport Rules)
+#
+$moduleMessage = "Retrieving Mail Transport Rules";
+if ($Commands -and $Commands -notmatch "TransportRules") {
+    $continue = $false
+} elseif ($Interactive) {
+    Out-LogFile $moduleMessage;
+    $startTimer = [System.Diagnostics.Stopwatch]::StartNew();
+    Write-Host $InteractiveMessage;
+    $skip = $null;
+    $continue = $null;
+    do {
+        if ($startTimer.Elapsed.Seconds -gt $InteractiveWaitSeconds) {
+            $continue = $true
+        }
+        if ([Console]::KeyAvailable) {
+            $keyPress = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+            if ($keyPress) {
+                $skip = $true
+            }
+        }
+    } while((-not $skip) -and (-not $continue))
+} else {
+    $continue = $true
+};
+
+if ($continue) {
+    if (-not $Interactive) {
+        Out-LogFile $moduleMessage
+    }
+    if ($Interactive) {
+        Write-Host $InteractiveContMessage
+    };
+    $TransportRules = $null;
+    try {
+        [array]$TransportRules = Get-TransportRule -ResultSize Unlimited;
+        if($TransportRules.Count -gt 0) {
+            try {
+                $TransportRules | Select-Object Name,IsValid,WhenChanged,LastModifiedBy,ActivationDate,ExpiryDate,Mode,State,Actions | Export-Csv "$reportsFolder\MailTransportRules.csv" -NoTypeInformation -Encoding Default;
+                $TransportRules | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\MailTransportRules.json"
+            } catch {
+                Out-LogFile "Unable to write output to disk" -warning;
+                Write-Error $_.Exception.Message;
+                Write-Host -ForegroundColor Red "[!] Unable to write output to disk"
+            };
+            try {
+                Out-LogFile ("[+] Found " + $TransportRules.count + " transport rule(s)");
+                Out-LogFile "[+] Review all Transport Rules. Output saved to '$runFolderShort\Reports\MailTransportRules.csv'";
+                Out-Summary "Transport Rules" -NewReport;
+                Out-Summary ("[+] Found " + $TransportRules.count + " transport rule(s)");
+                Out-Summary "[+] Review all Transport Rules. Output saved to '$runFolderShort\Reports\MailTransportRules.csv'";
+                Out-Summary "`rINVESTIGATIVE TIPS:
+    - Review all forwarding addresses for each transport rule and verify they are legitimate and approved.
+    " -Summary
+            } catch {
+                Out-LogFile "There was a problem logging this query" -warning;
+                Write-Error $_.Exception.Message;
+                Write-Host -ForegroundColor Red "[!] There was a problem logging this query"
+            }
+        }
+    } catch {
+        Out-LogFile "Unable to retrieve Mail Transport Rules" -warning;
+        Write-Error $_.Exception.Message;
+        Write-Host -ForegroundColor Red "[!] Unable to retrieve Mail Transport Rules"
+    };
+} else {
+    if ($Interactive) {
+        Write-Host $InteractiveSkipMessage
+    }
+};
+#
+# End Command: TransportRules
 #............................................................................................................................................
 
 #............................................................................................................................................
@@ -874,7 +935,7 @@ if ($continue) {
                 Out-LogFile "We ran into an error retrieving Mailbox Delegates where 'FullAccess' permission is granted. If a report is generated, it may not be complete." -warning;
                 Write-Host -ForegroundColor Red "[!] We ran into an error retrieving Mailbox Delegates where 'FullAccess' permission is granted. If a report is generated, it may not be complete.";
                 Write-Host -ForegroundColor Yellow "Try using the following command to obtain this report manually:"
-                Write-Host -ForegroundColor Yellow 'Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.AccessRights -eq "FullAccess") -and ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "FullAccessPerms.csv" -NoTypeInformation'
+                Write-Host -ForegroundColor Yellow 'Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.AccessRights -eq "FullAccess") -and ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "FullAccessPerms.csv" -NoTypeInformation -Encoding Default'
             } catch {
                 Write-Error $_.Exception.Message
             }
@@ -899,7 +960,7 @@ if ($continue) {
                 Out-LogFile "While some results returned, this report did not complete successfully. Please try running it manually." -warning;
                 Write-Host -ForegroundColor Yellow "[!] While some results returned, this report did not complete successfully. Please try running it manually."
             };
-            $FullAccessPermsResults | Export-Csv "$reportsFolder\FullAccessPerms.csv" -NoTypeInformation;
+            $FullAccessPermsResults | Export-Csv "$reportsFolder\FullAccessPerms.csv" -NoTypeInformation -Encoding Default;
             $FullAccessPermsResults | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\FullAccessPerms.json"
         } catch {
             Out-LogFile "Unable to write output to disk" -warning;
@@ -976,7 +1037,7 @@ if ($continue) {
                 Out-LogFile "We ran into an error retrieving Mailbox Delegates where 'Any' permissions are granted. If a report is generated, it may not be complete." -warning;
                 Write-Host -ForegroundColor Red "[!] We ran into an error retrieving Mailbox Delegates where 'Any' permissions are granted. If a report is generated, it may not be complete.";
                 Write-Host -ForegroundColor Yellow "Try using the following command to obtain this report manually:"
-                Write-Host -ForegroundColor Yellow 'Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "AnyAssignedPerms.csv" -NoTypeInformation'
+                Write-Host -ForegroundColor Yellow 'Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "AnyAssignedPerms.csv" -NoTypeInformation -Encoding Default'
             } catch {
                 Write-Error $_.Exception.Message
             }
@@ -1001,7 +1062,7 @@ if ($continue) {
                 Out-LogFile "While some results returned, this report did not complete successfully. Please try running it manually." -warning;
                 Write-Host -ForegroundColor Yellow "[!] While some results returned, this report did not complete successfully. Please try running it manually."
             };
-            $AnyAssignedPermsResults | Export-Csv "$reportsFolder\AnyAssignedPerms.csv" -NoTypeInformation;
+            $AnyAssignedPermsResults | Export-Csv "$reportsFolder\AnyAssignedPerms.csv" -NoTypeInformation  -Encoding Default;
             $AnyAssignedPermsResults | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\AnyAssignedPerms.json"
         } catch {
             Out-LogFile "Unable to write output to disk" -warning;
@@ -1082,7 +1143,7 @@ if ($continue) {
         }
     };
     try {
-        $DelegatesSendPerms += Get-EXOMailbox -ResultSize Unlimited | Where-Object {$_.GrantSendOnBehalfTo -ne $null}
+        $DelegateSendPerms += Get-EXOMailbox -ResultSize Unlimited | Where-Object {$_.GrantSendOnBehalfTo -ne $null}
     } catch {
         Out-LogFile "Unable to retrieve Mailbox Delegates where where 'Send As' or 'SendOnBehalf' permission is granted" -warning;
         Write-Error $_.Exception.Message;
@@ -1090,7 +1151,7 @@ if ($continue) {
     };
     if($DelegateSendPerms.Count -gt 0) {
         try {
-            $DelegateSendPerms | Select Identity,Trustee,AccessControlType,AccessRights,IsInherited,InheritanceType | Export-Csv "$reportsFolder\SendAsDelegates.csv" -NoTypeInformation;
+            $DelegateSendPerms | Select-Object Identity,Trustee,AccessControlType,AccessRights,IsInherited,InheritanceType | Export-Csv "$reportsFolder\SendAsDelegates.csv" -NoTypeInformation  -Encoding Default;
             $DelegateSendPerms | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\SendAsDelegates.json"
         } catch {
             Out-LogFile "Unable to write output to disk" -warning;
@@ -1160,7 +1221,7 @@ if ($continue) {
         [array]$EXOPowerShellUsers = Get-User -ResultSize unlimited | Select-Object Name,DisplayName,UserPrincipalName,RemotePowerShellEnabled,AccountDisabled;
         if($EXOPowerShellUsers.Count -gt 0) {
             try {
-                $EXOPowerShellUsers | Export-Csv -Path "$reportsFolder\EXOPowerShellUsers.csv" -NoTypeInformation;
+                $EXOPowerShellUsers | Export-Csv -Path "$reportsFolder\EXOPowerShellUsers.csv" -NoTypeInformation  -Encoding Default;
                 $EXOPowerShellUsers | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\EXOPowerShellUsers.json"
             } catch {
                 Out-LogFile "Unable to write output to disk" -warning;
@@ -1235,7 +1296,7 @@ if ($continue) {
         [array]$AuditByPassEnabled = Get-MailboxAuditBypassAssociation -ResultSize Unlimited | Where-Object{$_.AuditBypassEnabled -eq $true} | Select-Object Name,AuditBypassEnabled;
         if($AuditByPassEnabled.Count -gt 0) {
             try {
-                $AuditByPassEnabled | Export-Csv -Path "$reportsFolder\AuditByPassEnabledUsers.csv" -NoTypeInformation;
+                $AuditByPassEnabled | Export-Csv -Path "$reportsFolder\AuditByPassEnabledUsers.csv" -NoTypeInformation -Encoding Default;
                 $AuditByPassEnabled | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\AuditByPassEnabledUsers.json"
             } catch {
                 Out-LogFile "Unable to write output to disk" -warning;
@@ -1310,7 +1371,7 @@ if ($continue) {
         [array]$HiddenMailboxes = Get-EXORecipient -ResultSize Unlimited | Where-Object{$_.HiddenFromAddressListsEnabled -eq $true};
         if($HiddenMailboxes.Count -gt 0) {
             try {
-                $HiddenMailboxes | Export-Csv "$reportsFolder\HiddenMailboxes.csv" -NoTypeInformation;
+                $HiddenMailboxes | Export-Csv "$reportsFolder\HiddenMailboxes.csv" -NoTypeInformation -Encoding Default;
                 $HiddenMailboxes | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\HiddenMailboxes.json";
             } catch {
                 Out-LogFile "Unable to write output to disk" -warning;
@@ -1344,6 +1405,44 @@ if ($continue) {
 #
 # End Command: HiddenMailboxes
 #............................................................................................................................................
+
+#............................................................................................................................................
+# Azure AD Authentication
+#............................................................................................................................................
+
+# Connect to Azure AD
+
+Out-LogFile "Beginning authentication";
+Out-LogFile "Authenticating to Azure AD";
+try {
+    if ($BasicAuth) {
+        $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
+    } else {
+        $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
+    };
+    Out-LogFile "Successfully connected to Azure AD"
+} catch {
+    if($_.Exception.Message -match "you have exceeded the maximum number of connections allowed"){
+        try {
+            Disconnect-AzureAD | Out-Null;
+            Out-LogFile "Disconnected from previous Azure AD session(s)"
+        } catch {
+            Write-Error $_.Exception.Message
+        };
+        try {
+            if ($BasicAuth) {
+                $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
+            } else {
+                $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
+            };
+            Out-LogFile "Successfully connected to Azure AD"
+        } catch {
+            throw $_.Exception.Message
+        }
+    } else {
+        throw $_.Exception.Message
+    }
+};
 
 #............................................................................................................................................
 # Begin Command: KeyCredentials (Retrieve Service Principal Objects with KeyCredentials)
@@ -1403,7 +1502,7 @@ if ($continue) {
         };
         if($ServicePrincipalObjects.Count -gt 0) {
             try {
-                $ServicePrincipalObjects | Export-Csv -Path "$reportsFolder\ServicePrincipalObjects.csv" -NoTypeInformation;
+                $ServicePrincipalObjects | Export-Csv -Path "$reportsFolder\ServicePrincipalObjects.csv" -NoTypeInformation -Encoding Default;
                 $ServicePrincipalObjects | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\ServicePrincipalObjects.json";
             } catch {
                 Out-LogFile "Unable to write output to disk" -warning;
@@ -1528,7 +1627,7 @@ if ($continue) {
     #Output the report to CSV
     if ($null -ne $O365AdminGroupReport) {
         try {
-            $O365AdminGroupReport | Export-CSV -Path "$reportsFolder\$OutputFileName" -Force -NoTypeInformation;
+            $O365AdminGroupReport | Export-CSV -Path "$reportsFolder\$OutputFileName" -Force -NoTypeInformation -Encoding Default;
             $O365AdminGroupReport | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\$($OutputFileName.Replace(".csv",".json"))";
         } catch {
             Out-LogFile "Unable to write output to disk" -warning;
@@ -1744,7 +1843,7 @@ if ($continue) {
         }
     };
     try {
-        $data | Export-CSV -Path "$reportsFolder\$ADPSOutputFileName" -Force -NoTypeInformation;
+        $data | Export-CSV -Path "$reportsFolder\$ADPSOutputFileName" -Force -NoTypeInformation -Encoding Default;
         $data | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\$($ADPSOutputFileName.Replace(".csv",".json"))"
     } catch {
         Out-LogFile "Unable to write output to disk" -warning;
