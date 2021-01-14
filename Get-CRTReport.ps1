@@ -1135,8 +1135,8 @@ if ($continue) {
     } catch {
         if($_.Exception.Message -match "unauthorized"){
             try {
-                Out-LogFile "Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Global Admin' role." -warning;
-                Write-Host -ForegroundColor Red "[!] Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Global Admin' role. Skipping command..."
+                Out-LogFile "Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Exchange Admin' role." -warning;
+                Write-Host -ForegroundColor Red "[!] Unable to retrieve Mailbox Delegates where 'Send As' or 'SendOnBehalf' permission is granted. Requires 'Exchange Admin' role. Skipping command..."
             } catch {
                 Write-Error $_.Exception.Message
             }
@@ -1153,8 +1153,12 @@ if ($continue) {
     };
     if($DelegateSendPerms.Count -gt 0) {
         try {
-            $DelegateSendPerms | Select-Object Identity,Trustee,AccessControlType,AccessRights,IsInherited,InheritanceType | Export-Csv "$reportsFolder\SendAsDelegates.csv" -NoTypeInformation  -Encoding Default;
-            $DelegateSendPerms | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\SendAsDelegates.json"
+            $DelegatesFormatted = @()
+            foreach($Delegate in $DelegateSendPerms){
+                $DelegatesFormatted += $Delegate | Select-Object Identity, Trustee, AccessControlType, IsInherited, InheritanceType, @{name="AccessRightsValues";expression={$_.AccessRights -join ","}};
+            }
+            $DelegatesFormatted | Export-Csv "$reportsFolder\SendAsDelegates.csv" -NoTypeInformation  -Encoding Default;
+            $DelegatesFormatted | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\SendAsDelegates.json"
         } catch {
             Out-LogFile "Unable to write output to disk" -warning;
             Write-Error $_.Exception.Message;
