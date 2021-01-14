@@ -565,8 +565,7 @@ if ($continue) {
                 Out-Summary "Federation Trust Information" -NewReport;
                 Out-Summary "[+] Review Federation Trust. Output saved to '$runFolderShort\Reports\FederationTrust.txt'";
                 Out-Summary "`rINVESTIGATIVE TIPS:
-                - Review the certificates for the trust. Investigate any recent changes based on date and ensure they are authorized & expected.
-                - NOTE: This is a known SUNBURST TTP." -Summary
+                - Review the certificates for the trust. Investigate any recent changes based on date and ensure they are authorized & expected." -Summary
             } catch {
                 Out-LogFile "There was a problem logging this query" -warning;
                 Write-Error $_.Exception.Message;
