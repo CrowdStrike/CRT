@@ -18,6 +18,7 @@ Exchange Online (O365):
 - Exchange Online PowerShell Enabled Users
 - Users with 'Audit Bypass' Enabled
 - Mailboxes Hidden from the Global Address List (GAL)
+- Collect administrator audit logging configuration settings.
 
 Azure AD:
 - Service Principal Objects with KeyCredentials
@@ -44,6 +45,12 @@ This tool will return most queries in .CSV format, and a few in .TXT format. Add
 .PARAMETER Interactive
 [OPTIONAL] Some commands may take a long time to process depending on the amount of data in the tenant. Using the Interactive parameter, you will have the option to skip any particular command prior to the module running.
 
+.PARAMETER ExchangeEnvironmentName
+[OPTIONAL] Valid options are: O365China,O365Default,O365GermanyCloud,O365USGovDoD,O365USGovGCCHigh
+
+.PARAMETER AzureEnvironmentName
+[OPTIONAL] Valid options are: AzureChinaCloud,AzureCloud,AzureGermanyCloud,AzurePPE,AzureUSGovernment
+
 .EXAMPLE
 .\Get-CRTReport.ps1
 
@@ -62,11 +69,17 @@ This tool will return most queries in .CSV format, and a few in .TXT format. Add
 .EXAMPLE
 .\Get-CRTReport.ps1 -JobName MyJobName -WorkingDirectory 'C:\Path\to\Job' -Commands "Command1,Command2"
 
+.EXAMPLE
+.\Get-CRTReport.ps1 -ExchangeEnvironmentName O365USGovGCCHigh -AzureEnvironmentName AzureUSGovernment
+
 .NOTES
 CrowdStrike Reporting Tool for Azure (CRT)
 Written by CrowdStrike Endpoint Recovery Services
 
 Version History:
+V1.2, 04/07/2021
+- Added additional params for users to specify AzureEnvironmentName and ExchangeEnvironmentName
+- Added command for collection of Unified Audit Log Status (Get-AdminAuditLogConfig)
 
 V1.1, 01/14/2021
 - Added Mail Transport Rules query
@@ -75,7 +88,6 @@ V1.1, 01/14/2021
 - Separated Exchange online and Azure AD logons
 
 V1.0, 12/23/2020 - Initial version
-
 License:
 Copyright (c) 2020 CrowdStrike
 Copyright (c) 2020 panavarr
@@ -105,7 +117,9 @@ Param (
     [String]$Commands,
     [Switch]$Interactive,
     [String]$JobName,
-    [System.IO.FileInfo]$WorkingDirectory
+    [System.IO.FileInfo]$WorkingDirectory,
+    [ValidateSet("O365China","O365Default","O365GermanyCloud","O365USGovDoD","O365USGovGCCHigh")][String]$ExchangeEnvironmentName,
+    [ValidateSet("AzureChinaCloud","AzureCloud","AzureGermanyCloud","AzurePPE","AzureUSGovernment")][String]$AzureEnvironmentName
 );
 
 #...................................
@@ -251,7 +265,8 @@ if ($Commands) {
         "HiddenMailboxes",
         "KeyCredentials",
         "O365AdminGroups",
-        "DelegateAppPerms"
+        "DelegateAppPerms",
+        "AdminAuditLogConfig"
     );
     $SplitChar = [regex]::Match($Commands,"\W").Value;
     $allCommands = $Commands.Split($SplitChar);
@@ -407,9 +422,19 @@ Out-LogFile "Beginning authentication";
 Out-LogFile "Authenticating to Exchange Online";
 try {
     if ($BasicAuth) {
-        Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
+        if($ExchangeEnvironmentName) {
+            Connect-ExchangeOnline -Credential $loginCreds -ExchangeEnvironmentName $ExchangeEnvironmentName -ShowBanner:$false -ErrorAction Stop 6>$null}
+        else {
+            Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
+        }
+
     } else {
-        Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop 6>$null
+        if($ExchangeEnvironmentName) {
+            Connect-ExchangeOnline -ExchangeEnvironmentName $ExchangeEnvironmentName -ShowBanner:$false -ErrorAction Stop 6>$null
+        }
+        else {
+            Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop 6>$null
+        }
     };
     Out-LogFile "Successfully connected to Exchange Online"
 } catch {
@@ -422,9 +447,20 @@ try {
         };
         try {
             if ($BasicAuth) {
-                Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
-            } else {
+                if($ExchangeEnvironmentName) {
+                    Connect-ExchangeOnline -Credential $loginCreds -ExchangeEnvironmentName $ExchangeEnvironmentName -ShowBanner:$false -ErrorAction Stop 6>$null
+                }
+                else {
+                    Connect-ExchangeOnline -Credential $loginCreds -ShowBanner:$false -ErrorAction Stop 6>$null
+                }
+            }
+             else {
+                if($ExchangeEnvironmentName) {
+                Connect-ExchangeOnline -ExchangeEnvironmentName $ExchangeEnvironmentName -ShowBanner:$false -ErrorAction Stop 6>$null
+                }
+                else {
                 Connect-ExchangeOnline -ShowBanner:$false -ErrorAction Stop 6>$null
+                }
             };
             Out-LogFile "Successfully connected to Exchange Online"
         } catch {
@@ -1346,6 +1382,77 @@ if ($continue) {
 #............................................................................................................................................
 
 #............................................................................................................................................
+# Begin Command: AdminAuditLogConfig (to view the administrator audit logging configuration settings)
+# 
+$moduleMessage = "Retrieving Admin Audit log configuration settings";
+if ($Commands -and $Commands -notmatch "AdminAuditLogConfig") {
+    $continue = $false
+} elseif ($Interactive) {
+    Out-LogFile $moduleMessage;
+    $startTimer = [System.Diagnostics.Stopwatch]::StartNew();
+    Write-Host $InteractiveMessage;
+    $skip = $null;
+    $continue = $null;
+    do {
+        if ($startTimer.Elapsed.Seconds -gt $InteractiveWaitSeconds) {
+            $continue = $true
+        }
+        if ([Console]::KeyAvailable) {
+            $keyPress = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+            if ($keyPress) {
+                $skip = $true
+            }
+        }
+    } while((-not $skip) -and (-not $continue))
+} else {
+    $continue = $true
+};
+
+if ($continue) {
+    if (-not $Interactive) {
+        Out-LogFile $moduleMessage
+    }
+    if ($Interactive) {
+        Write-Host $InteractiveContMessage
+    };
+    Write-Host -ForegroundColor Yellow "This make take awhile; please be patient...";
+    try{
+    $AdminAuditLogConfig = Get-AdminAuditLogConfig
+            try {
+                
+                $AdminAuditLogConfig | Export-Csv -Path "$reportsFolder\AdminAuditLogConfig.csv" -NoTypeInformation -Encoding Default;
+                $AdminAuditLogConfig | ConvertTo-Json -Depth 10 | Out-File "$jsonFolder\AdminAuditLogConfig.json"
+            } catch {
+                Out-LogFile "Unable to write output to disk" -warning;
+                Write-Error $_.Exception.Message;
+                Write-Host -ForegroundColor Red "[!] Unable to write output to disk"
+            };
+            try {
+                Out-LogFile "[+] Review 'Admin Audit Log Config'. The output was saved to '$runFolderShort\Reports\AdminAuditLogConfig.csv";
+                Out-Summary "[+] Review 'Admin Audit Log Config'. The output was saved to '$runFolderShort\Reports\AdminAuditLogConfig.csv";
+                Out-Summary "`rINVESTIGATIVE TIPS:
+                - This output can be used to view the administrator audit logging configuration settings." -Summary
+                
+            } catch {
+                Out-LogFile "There was a problem logging this query" -warning;
+                Write-Error $_.Exception.Message;
+                Write-Host -ForegroundColor Red "[!] There was a problem logging this query"
+            }
+    } catch {
+        Out-LogFile "Unable to retrieve Admin Audit log information." -warning;
+        Write-Error $_.Exception.Message;
+        Write-Host -ForegroundColor Red "[!] Unable to retrieve Admin Audit log information.";
+    };
+} else {
+    if ($Interactive) {
+        Write-Host $InteractiveSkipMessage
+    }
+};
+#
+# End Command: AdminAuditLogConfig
+#............................................................................................................................................
+
+#............................................................................................................................................
 # Begin Command: HiddenMailboxes (Retrieve Hidden Mailboxes from Exchange Online)
 #
 $moduleMessage = "Retrieving Hidden Mailboxes from Exchange Online";
@@ -1429,9 +1536,20 @@ Out-LogFile "Beginning authentication";
 Out-LogFile "Authenticating to Azure AD";
 try {
     if ($BasicAuth) {
+        if($AzureEnvironmentName) {
+        $ConnectAZD = Connect-AzureAD -AzureEnvironmentName $AzureEnvironmentName -Credential $loginCreds -ErrorAction Stop 6>$null
+        }
+        else {
         $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
-    } else {
+        }
+    } 
+    else {
+        if($AzureEnvironmentName) {
+        $ConnectAZD = Connect-AzureAD -AzureEnvironmentName $AzureEnvironmentName -ErrorAction Stop 6>$null
+        }
+        else {
         $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
+        }
     };
     Out-LogFile "Successfully connected to Azure AD"
 } catch {
@@ -1444,9 +1562,20 @@ try {
         };
         try {
             if ($BasicAuth) {
+                if($AzureEnvironmentName) {
+                $ConnectAZD = Connect-AzureAD -AzureEnvironmentName $AzureEnvironmentName -Credential $loginCreds -ErrorAction Stop 6>$null
+                }
+                else {
                 $ConnectAZD = Connect-AzureAD -Credential $loginCreds -ErrorAction Stop 6>$null
-            } else {
+                }
+            } 
+            else {
+                if($AzureEnvironmentName) {
+                $ConnectAZD = Connect-AzureAD -AzureEnvironmentName $AzureEnvironmentName -ErrorAction Stop 6>$null
+                }
+                else {
                 $ConnectAZD = Connect-AzureAD -ErrorAction Stop 6>$null
+                }
             };
             Out-LogFile "Successfully connected to Azure AD"
         } catch {
@@ -1598,7 +1727,12 @@ if ($continue) {
         if ($_.Exception.Message -ieq "You must call the Connect-AzureAD cmdlet before calling any other cmdlets.") {
             #Connect to Azure AD
             try {
+                if($AzureEnvironmentName) {
+                $AzureADConnection = Connect-AzureAD -AzureEnvironmentName $AzureEnvironmentName -ErrorAction Stop 6>$null;
+                }
+                else {
                 $AzureADConnection = Connect-AzureAD -ErrorAction Stop 6>$null;
+                }
                 $AzureADRoles = @(Get-AzureADDirectoryRole -ErrorAction Stop)
             } catch {
                 throw $_.Exception.Message
