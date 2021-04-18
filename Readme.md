@@ -15,6 +15,7 @@ Exchange Online (O365):
 - Exchange Online PowerShell Enabled Users
 - Users with 'Audit Bypass' Enabled
 - Mailboxes Hidden from the Global Address List (GAL)
+- Collect administrator audit logging configuration settings.
 
 Azure AD:
 - Service Principal Objects with KeyCredentials
@@ -62,6 +63,11 @@ _[OPTIONAL] With this parameter, specify the specific commands you want to run i
 ```
 .\Get-CRTReport.ps1 -JobName MyJobName -WorkingDirectory 'C:\Path\to\Job\Folder' -Commands "Command1,Command2"
 ```
+`-AzureEnvironmentName & -ExchangeEnvironmentName` Parameter:
+_[OPTIONAL] With this parameter, specify the Azure or Exchange environment names. Using tab complete you can search the acceptable values._
+```
+.\Get-CRTReport.ps1 -ExchangeEnvironmentName O365USGovGCCHigh -AzureEnvironmentName AzureUSGovernment
+```
 Available Commands:
 ```
 FedConfig
@@ -79,6 +85,7 @@ HiddenMailboxes
 KeyCredentials
 O365AdminGroups
 DelegateAppPerms
+AdminAuditLogConfig
 ```
 
 `-Interactive` Parameter:
