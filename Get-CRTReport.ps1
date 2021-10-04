@@ -3,7 +3,7 @@
 Retrieves various configurations from the Azure AD/O365 tenant to provide insight during threat hunting.
 
 .DESCRIPTION 
-This tool queries the following configurations in the Azure AD/O365 tenant which can shed light on hard to find permissions and configuration settings in order to assist organizations in securing these environments.
+This tool queries the following configurations in the Azure AD/O365 tenant which can shed light on hard-to-find permissions and configuration settings in order to assist organizations in securing these environments.
 
 Exchange Online (O365):
 - Federation Configuration
@@ -1284,7 +1284,7 @@ if ($continue) {
                 Out-Summary ("[+] Found " + $EXOPowerShellUsers.count + " Exchange Online user(s) with Remote PowerShell enabled");
                 Out-Summary "Review Exchange Online PowerShell enabled users. Output saved to '$runFolderShort\Reports\EXOPowerShellUsers.csv";
                 Out-Summary "`rINVESTIGATIVE TIPS:
-                - Look for any account that has Remote PowerShell enabled; attackers will typically use Exchange Online PowerShell to interact or exfiltrate emails out of the account because the activity is not monitored." -Summary
+                - Look for any account that has Remote PowerShell enabled; attackers will typically use Exchange Online PowerShell to interact with or exfiltrate emails out of the account because the activity is not monitored." -Summary
             } catch {
                 Out-LogFile "There was a problem logging this query" -warning;
                 Write-Error $_.Exception.Message;
