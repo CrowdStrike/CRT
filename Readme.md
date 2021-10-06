@@ -1,6 +1,6 @@
 ## CrowdStrike Reporting Tool for Azure (CRT)
 
-This tool queries the following configurations in the Azure AD/O365 tenant which can shed light on hard to find permissions and configuration settings in order to assist organizations in securing these environments.
+This tool queries the following configurations in the Azure AD/O365 tenant which can shed light on hard-to-find permissions and configuration settings in order to assist organizations in securing these environments.
 
 Exchange Online (O365):
 - Federation Configuration
@@ -106,7 +106,7 @@ No parameters specified: _A folder named with date and time (YYYYDDMMTHHMM) will
 
 ### Known Issues:
 
-- Attempting to connect to Exchange Online using Federated logins does not currently work while trying to connect to both Exchange Online and Azure AD in the same PowerShell Session.
+- Attempting to connect to Exchange Online using Federated logins does not currently work while trying to connect to both Exchange Online and Azure AD in the same PowerShell session.
 - Retrieving results for Any/FullAccess permissions (AnyAccessGranted and FullAccessGranted commands) in some cases returns an error and may not fully complete. Running the command manually may still work:
 ```
 Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object { ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")} | Export-Csv "AnyAssignedPerms.csv" -NoTypeInformation -Encoding Default
@@ -118,4 +118,4 @@ Get-EXOMailbox -ResultSize Unlimited | Get-EXOMailboxPermission | Where-Object {
 
 If you've found a bug, please use the Issues tab to report a new issue or add your comments to an existing one.
 
-If you have any recommendations for the tool, or require critical escalation, please email: CRT@crowdstrike.com
+If you have any recommendations for the tool or require critical escalation, please email: CRT@crowdstrike.com.
