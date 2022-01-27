@@ -1633,6 +1633,7 @@ if ($continue) {
                 $ObjectProperties = [Ordered]@{
                     "ObjectId" = ($obj.ObjectId | Out-String).Trim()
                     "AppId" = ($obj.AppId | Out-String).Trim()
+		     "DisplayName" = ($obj.DisplayName | Out-String).Trim()
                     "StartDate" = ($KeyCred.StartDate | Out-String).Trim()
                     "EndDate" = ($KeyCred.EndDate | Out-String).Trim()
                     "KeyId" = ($KeyCred.KeyId | Out-String).Trim()
