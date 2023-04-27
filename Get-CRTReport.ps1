@@ -3,7 +3,7 @@
 Retrieves various configurations from the Azure AD/O365 tenant to provide insight during threat hunting.
 
 .DESCRIPTION 
-This tool queries the following configurations in the Azure AD/O365 tenant which can shed light on hard-to-find permissions and configuration settings in order to assist organizations in securing these environments.
+This tool queries the following configurations in the Azure AD/O365 tenant which can shed light on hard to find permissions and configuration settings in order to assist organizations in securing these environments.
 
 Exchange Online (O365):
 - Federation Configuration
@@ -18,7 +18,6 @@ Exchange Online (O365):
 - Exchange Online PowerShell Enabled Users
 - Users with 'Audit Bypass' Enabled
 - Mailboxes Hidden from the Global Address List (GAL)
-- Collect administrator audit logging configuration settings.
 
 Azure AD:
 - Service Principal Objects with KeyCredentials
@@ -77,6 +76,10 @@ CrowdStrike Reporting Tool for Azure (CRT)
 Written by CrowdStrike Endpoint Recovery Services
 
 Version History:
+V1.3 04/06/2023
+- Fix bug where the PrimarySMTPAdress of a user may include an apostrophe(')
+- Force install of version >3.1.0 of ExchangeOnline Module
+
 V1.2, 04/07/2021
 - Added additional params for users to specify AzureEnvironmentName and ExchangeEnvironmentName
 - Added command for collection of Unified Audit Log Status (Get-AdminAuditLogConfig)
@@ -367,10 +370,12 @@ $Global:LogDirectory = $runFolder;
 
 # Check for the Azure AD and Exchange Online Management Modules, and install if not already available
 Out-LogFile "Checking for PowerShell module prerequisites"
-if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+if ((Get-Module -ListAvailable -Name ExchangeOnlineManagement).Version.Major -lt 3) {
     try {
+        Out-LogFile "Uninstalling old versions of the ExchangeOnlineManagement module (< 3.1.0)"
+        Uninstall-Module ExchangeOnlineManagement -AllVersions -Force -ErrorAction SilentlyContinue
         Out-LogFile "Installing ExchangeOnlineManagement module";
-        Install-Module -Scope CurrentUser -Name ExchangeOnlineManagement -Force
+        Install-Module -Scope CurrentUser -Name ExchangeOnlineManagement -RequiredVersion 3.1.0 -Force
     } catch {
         Write-Error $_.Exception.Message;
         Write-Host -ForegroundColor Red "[!] Unable to install module ExchangeOnlineManagement."
@@ -964,7 +969,7 @@ if ($continue) {
     $FullAccessPerms = @();
     $FullAccessPermsResults = @();
     try {
-        $FullAccessPerms += Get-EXOMailbox -ResultSize Unlimited -ErrorAction SilentlyContinue  | Get-EXOMailboxPermission -ErrorAction Stop | Where-Object { ($_.AccessRights -eq "FullAccess") -and ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")}
+        $FullAccessPerms += Get-EXOMailbox -ResultSize Unlimited -ErrorAction SilentlyContinue | foreach {$_.PrimarySmtpAddress.Replace("'","")}| Get-EXOMailboxPermission -ErrorAction Stop | Where-Object { ($_.AccessRights -eq "FullAccess") -and ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")}
     } catch {
         if($_.Exception.Message -match "Cannot validate argument on parameter"){
             try {
@@ -1066,7 +1071,7 @@ if ($continue) {
     $AnyAssignedPerms = @();
     $AnyAssignedPermsResults = @();
     try {
-        $AnyAssignedPerms += Get-EXOMailbox -ResultSize Unlimited -ErrorAction SilentlyContinue | Get-EXOMailboxPermission -ErrorAction Stop | Where-Object { ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")}
+        $AnyAssignedPerms += Get-EXOMailbox -ResultSize Unlimited -ErrorAction SilentlyContinue |foreach {$_.PrimarySmtpAddress.Replace("'","")} | Get-EXOMailboxPermission -ErrorAction Stop | Where-Object { ($_.IsInherited -eq $false) -and -not ($_.User -like "NT AUTHORITY\SELF")}
     } catch {
         if($_.Exception.Message -match "Cannot validate argument on parameter"){
             try {
@@ -1167,7 +1172,7 @@ if ($continue) {
     $DelegateSendPerms = @();
     $DelegateSendPermsResults = @();
     try {
-        $DelegateSendPerms += Get-EXOMailbox -ResultSize Unlimited -ErrorAction SilentlyContinue | Get-EXORecipientPermission -ErrorAction Stop | Where-Object {$_.Trustee -ne "NT AUTHORITY\SELF"}    
+        $DelegateSendPerms += Get-EXOMailbox -ResultSize Unlimited -ErrorAction SilentlyContinue |foreach {$_.PrimarySmtpAddress.Replace("'","")}| Get-EXORecipientPermission -ErrorAction Stop | Where-Object {$_.Trustee -ne "NT AUTHORITY\SELF"}    
     } catch {
         if($_.Exception.Message -match "unauthorized"){
             try {
@@ -1284,7 +1289,7 @@ if ($continue) {
                 Out-Summary ("[+] Found " + $EXOPowerShellUsers.count + " Exchange Online user(s) with Remote PowerShell enabled");
                 Out-Summary "Review Exchange Online PowerShell enabled users. Output saved to '$runFolderShort\Reports\EXOPowerShellUsers.csv";
                 Out-Summary "`rINVESTIGATIVE TIPS:
-                - Look for any account that has Remote PowerShell enabled; attackers will typically use Exchange Online PowerShell to interact with or exfiltrate emails out of the account because the activity is not monitored." -Summary
+                - Look for any account that has Remote PowerShell enabled; attackers will typically use Exchange Online PowerShell to interact or exfiltrate emails out of the account because the activity is not monitored." -Summary
             } catch {
                 Out-LogFile "There was a problem logging this query" -warning;
                 Write-Error $_.Exception.Message;
